@@ -1,23 +1,66 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cover Snap</title>
-<link rel="stylesheet" href="./style.css">
+<link rel="icon" href="data:,">
+<title>Golden Hour — Vice Cover Studio</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main class="app">
-  <section class="controls">
-    <h1>Cover Snap</h1>
-    <p>A photo and a caption, made into a square cover.</p>
-    <label>Photo <input id="photo" type="file" accept="image/*"></label>
-    <label>Caption <input id="caption" type="text" maxlength="40" value="Sunset Heist"></label>
-    <button id="export" type="button">Export PNG 1080 x 1080</button>
-    <p id="status" role="status"></p>
+<header class="topbar">
+  <div class="brand"><span class="brand-mark">GOLDEN HOUR</span><span class="brand-sub">Vice Cover Studio</span></div>
+  <div class="topnote">Your photos · Your caption · Three sizes · Offline</div>
+</header>
+<main class="workbench">
+  <section class="controls" aria-label="Cover controls">
+    <div class="group">
+      <h2>1 · Photos</h2>
+      <p class="hint">Click a sample to use it, or drop your own photos in. Photos stay on your machine — nothing is uploaded.</p>
+      <div id="photoThumbs" class="thumbs"></div>
+      <div id="dropzone" class="dropzone" role="button" tabindex="0">Drop photos here, or click to choose</div>
+      <input id="upload" type="file" accept="image/*" multiple hidden>
+    </div>
+    <div class="group">
+      <h2>2 · Layout</h2>
+      <div id="layoutBtns" class="picks"></div>
+    </div>
+    <div class="group">
+      <h2>3 · Grade</h2>
+      <div id="gradeBtns" class="picks"></div>
+    </div>
+    <div class="group">
+      <h2>4 · Caption</h2>
+      <label>Title<input id="inTitle" type="text" maxlength="24" autocomplete="off"></label>
+      <label>Subtitle<input id="inSubtitle" type="text" maxlength="32" autocomplete="off"></label>
+      <label>Tagline<input id="inTagline" type="text" maxlength="48" autocomplete="off"></label>
+      <label>Press quote<input id="inQuote" type="text" maxlength="48" autocomplete="off"></label>
+      <label>Quote source<input id="inQuoteSource" type="text" maxlength="24" autocomplete="off"></label>
+      <label>Volume<input id="inVol" type="text" maxlength="12" autocomplete="off"></label>
+      <label>Billing line<input id="inBilling" type="text" maxlength="96" autocomplete="off"></label>
+    </div>
+    <div class="group">
+      <h2>5 · Panels</h2>
+      <p class="hint">Pick a photo per panel, then crop it with zoom and pan. Labels are the callouts printed on each panel.</p>
+      <div id="panelControls"></div>
+    </div>
   </section>
-  <canvas id="cover" width="1080" height="1080" aria-label="The cover"></canvas>
+  <section class="stage" aria-label="Live preview and export">
+    <div class="stagebar">
+      <div class="sizes" id="sizeBtns"></div>
+      <div id="previewSize" class="preview-size"></div>
+    </div>
+    <div class="canvaswrap"><canvas id="preview" width="960" height="540"></canvas></div>
+    <div class="exports">
+      <button id="export-landscape" type="button" class="export">Export PNG 1920 × 1080</button>
+      <button id="export-square" type="button" class="export">Export PNG 1080 × 1080</button>
+      <button id="export-portrait" type="button" class="export">Export PNG 1080 × 1350</button>
+      <button id="exportAll" type="button" class="export primary">Export all three sizes</button>
+    </div>
+    <div id="status" class="status">Ready.</div>
+    <p class="fineprint">All lettering is drawn in code with open fonts (Anton, Yellowtail, Archivo — SIL Open Font License). No Rockstar logo, artwork or font. Sample photos are model-made and free to use.</p>
+  </section>
 </main>
-<script type="module" src="./src/main.js"></script>
+<script type="module" src="src/main.js"></script>
 </body>
 </html>

@@ -1,3 +1,9 @@
+// Golden Hour v1 (hitomi-agent, 2026-11-20): a GTA-style cover studio replacing Cover Snap.
+// Six layouts, five sunset grades, per-panel photo crop/position, gradient 3D lettering,
+// script subtitle, press quote, seal, barcode and billing — all drawn in code. Six model-made
+// sample photos (the starter's two plus four new ones: skyline, tower, motel, getaway car).
+// Exports PNG 1080x1080 / 1080x1350 / 1920x1080; screenshots in screenshots/ are the app's
+// own exports plus one editor capture.
 // A working gta6-cover-art-01 entry (Node 22, standard library only): the app is this directory's app/ folder, plain
 // static files a desktop browser loads offline (app/index.html and its ES modules, no library and no network
 // request), and the program hands it in. It copies app/ and screenshots/ from beside this file to /output and writes

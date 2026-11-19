@@ -1,12 +1,173 @@
-html, body { margin: 0; height: 100%; background: #f2f0f4; color: #1d1b22; font: 15px/1.4 system-ui, sans-serif; }
-.app { display: flex; gap: 32px; align-items: center; justify-content: center; height: 100%; padding: 24px; box-sizing: border-box; }
-.controls { display: flex; flex-direction: column; gap: 14px; width: 280px; }
-.controls h1 { margin: 0; font-size: 28px; }
-.controls p { margin: 0; color: #5c5866; }
-label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
-input[type=text] { font: inherit; padding: 8px; border: 1px solid #c9c4d1; border-radius: 6px; }
-button { font: inherit; font-weight: 700; padding: 10px; border: 0; border-radius: 6px; background: #1d1b22; color: #fff; cursor: pointer; }
-canvas { width: min(70vh, 60vw); height: min(70vh, 60vw); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2); }
-body.shot-cover .controls { display: none; }
-body.shot-cover .app { padding: 0; }
-body.shot-cover canvas { width: 100vw; height: 100vh; box-shadow: none; }
+/* Golden Hour — editor styles. Dark studio theme, plum and gold. */
+@font-face {
+  font-family: 'Anton';
+  src: url('fonts/Anton-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Yellowtail';
+  src: url('fonts/Yellowtail.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Archivo';
+  src: url('fonts/Archivo.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: #14081c;
+  color: #f5ead9;
+  font-family: 'Archivo', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #3d1f45;
+  background: linear-gradient(90deg, #1c0a20, #2a0f2e);
+}
+.brand-mark {
+  font-family: 'Anton', sans-serif;
+  font-size: 26px;
+  letter-spacing: 2px;
+  background: linear-gradient(180deg, #ffe95c, #ff9a3d 55%, #ff2e88);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.brand-sub { margin-left: 10px; color: #ffb03a; font-weight: 700; letter-spacing: 1px; }
+.topnote { color: #c9a8d6; font-size: 12px; }
+
+.workbench {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 0;
+  min-height: calc(100vh - 57px);
+}
+.controls {
+  padding: 16px 18px 32px;
+  border-right: 1px solid #3d1f45;
+  overflow-y: auto;
+}
+.group { margin-bottom: 22px; }
+.group h2 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #ffb03a;
+}
+.hint { color: #c9a8d6; font-size: 12px; margin: 0 0 10px; }
+label { display: block; margin-bottom: 10px; font-size: 12px; color: #e8d5ef; }
+input[type="text"], select {
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: 1px solid #5a2f68;
+  border-radius: 6px;
+  background: #221026;
+  color: #f5ead9;
+  font: inherit;
+}
+input[type="text"]:focus, select:focus { outline: 2px solid #ff9a3d; }
+
+.thumbs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.thumb {
+  padding: 0;
+  border: 2px solid #5a2f68;
+  border-radius: 8px;
+  background: #221026;
+  cursor: pointer;
+  overflow: hidden;
+  width: 104px;
+}
+.thumb canvas { display: block; width: 100%; height: 72px; object-fit: cover; }
+.thumb span { display: block; padding: 3px 4px; font-size: 11px; color: #e8d5ef; }
+.thumb:hover { border-color: #ffb03a; }
+.dropzone {
+  border: 1px dashed #8a5a9e;
+  border-radius: 8px;
+  padding: 14px;
+  text-align: center;
+  color: #c9a8d6;
+  cursor: pointer;
+  font-size: 13px;
+}
+.dropzone.over { border-color: #ffb03a; background: #2a1430; }
+
+.picks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pick {
+  text-align: left;
+  padding: 8px 10px;
+  border: 1px solid #5a2f68;
+  border-radius: 8px;
+  background: #221026;
+  color: #f5ead9;
+  cursor: pointer;
+  font: inherit;
+}
+.pick b { display: block; font-size: 13px; }
+.pick span { display: block; font-size: 11px; color: #c9a8d6; }
+.pick:hover { border-color: #ffb03a; }
+.pick.on { border-color: #ffb03a; background: #3a1a42; box-shadow: 0 0 0 1px #ffb03a; }
+.pick.swatch { background: linear-gradient(135deg, var(--g1), var(--g2)); }
+.pick.swatch b { color: #160818; text-shadow: 0 1px 0 rgba(255,255,255,0.35); }
+
+.panelctl {
+  border: 1px solid #3d1f45;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: #1c0e22;
+}
+.panelhead { font-weight: 800; font-size: 12px; letter-spacing: 1px; margin-bottom: 8px; color: #ffd94d; }
+.panelctl select, .panelctl input[type="text"] { margin-bottom: 8px; }
+.slider { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.slider span { width: 52px; flex: none; font-size: 12px; }
+.slider input[type="range"] { flex: 1; accent-color: #ff9a3d; }
+
+.stage { padding: 16px 20px 32px; min-width: 0; }
+.stagebar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+.sizes { display: flex; gap: 8px; }
+.sizes .pick { padding: 6px 10px; }
+.preview-size { color: #c9a8d6; font-size: 12px; }
+.canvaswrap {
+  background: #0d0512;
+  border: 1px solid #3d1f45;
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+}
+#preview { max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 12px 40px rgba(0,0,0,0.55); }
+.exports { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.export {
+  padding: 10px 14px;
+  border: 1px solid #ffb03a;
+  border-radius: 8px;
+  background: transparent;
+  color: #ffd94d;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.export:hover { background: #3a1a42; }
+.export.primary { background: linear-gradient(180deg, #ffb03a, #ff2e88); color: #160818; border-color: transparent; }
+.status { margin-top: 10px; color: #c9a8d6; font-size: 12px; }
+.fineprint { color: #8a6a96; font-size: 11px; margin-top: 16px; max-width: 720px; }
+
+@media (max-width: 900px) {
+  .workbench { grid-template-columns: 1fr; }
+  .controls { border-right: none; border-bottom: 1px solid #3d1f45; }
+}
