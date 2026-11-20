@@ -3,74 +3,95 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="icon" href="data:,">
 <title>Golden Hour — GTA 6 Cover Studio</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23ff2d78'/%3E%3Ctext x='16' y='23' font-size='18' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'%3EG%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="topbar">
   <div class="brand">
-    <span class="logo">GOLDEN HOUR</span>
-    <span class="tag">GTA 6 cover studio · make your own poster</span>
+    <svg class="ghost" width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3C9 3 4 8.5 4 15.5V27l3.4-3.4L10.8 27l3.4-3.4 3.4 3.4 3.4-3.4 3.4 3.4L28 27V15.5C28 8.5 23 3 16 3z" fill="#fff"/><circle cx="11.5" cy="14" r="2.4" fill="#1c0f2e"/><circle cx="20.5" cy="14" r="2.4" fill="#1c0f2e"/><path d="M13.5 20.5q2.5 2.2 5 0" stroke="#1c0f2e" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
+    <div>
+      <h1>GOLDEN HOUR <span>— GTA 6 Cover Studio</span></h1>
+      <p class="steps">1 · Add photos &nbsp;→&nbsp; 2 · Caption &nbsp;→&nbsp; 3 · Export PNG</p>
+    </div>
   </div>
-  <div class="sizes" role="group" aria-label="Export size">
-    <button data-size="square" class="active">1080 × 1080</button>
-    <button data-size="portrait">1080 × 1350</button>
-    <button data-size="wide">1920 × 1080</button>
+  <div class="top-actions">
+    <button id="export-all" type="button" class="primary">Export all sizes</button>
   </div>
 </header>
 
-<section class="pickers">
-  <div class="picker">
-    <span class="picker-label">Layout</span>
-    <button data-layout="cast" class="active">Cast Grid</button>
-    <button data-layout="split">Sunset Split</button>
-    <button data-layout="slant">Comic Slant</button>
-    <button data-layout="strip">Triple Strip</button>
-    <button data-layout="hero">Hero Single</button>
-    <button data-layout="location">Location Grid</button>
-  </div>
-  <div class="picker">
-    <span class="picker-label">Grade</span>
-    <button data-grade="sunset">Sunset</button>
-    <button data-grade="neon">Neon</button>
-    <button data-grade="golden" class="active">Golden Hour</button>
-    <button data-grade="dark">After Dark</button>
-    <button data-grade="vice">Vice Pink</button>
-  </div>
-</section>
+<main class="editor">
+  <section class="rails" aria-label="Cover controls">
+    <div class="group">
+      <h2>Layout</h2>
+      <div class="buttons">
+        <button type="button" data-layout="cast" class="active">Cast Grid</button>
+        <button type="button" data-layout="split">Sunset Split</button>
+        <button type="button" data-layout="slant">Comic Slant</button>
+        <button type="button" data-layout="strip">Triple Strip</button>
+        <button type="button" data-layout="hero">Hero Single</button>
+        <button type="button" data-layout="location">Location Grid</button>
+      </div>
+    </div>
+    <div class="group">
+      <h2>Grade</h2>
+      <div class="buttons">
+        <button type="button" data-grade="sunset">Sunset</button>
+        <button type="button" data-grade="neon">Neon</button>
+        <button type="button" data-grade="golden" class="active">Golden Hour</button>
+        <button type="button" data-grade="dark">After Dark</button>
+        <button type="button" data-grade="vice">Vice Pink</button>
+      </div>
+    </div>
+    <div class="group">
+      <h2>Size</h2>
+      <div class="buttons">
+        <button type="button" data-size="square" class="active">Square · 1080×1080</button>
+        <button type="button" data-size="portrait">Portrait · 1080×1350</button>
+        <button type="button" data-size="wide">Wide · 1920×1080</button>
+      </div>
+    </div>
+    <div class="group">
+      <h2>Photos</h2>
+      <div id="photos" class="photos"></div>
+      <label class="upload" for="upload">+ Upload your photo</label>
+      <input id="upload" type="file" accept="image/*" hidden>
+      <p class="hint">Click a photo to put it in the selected panel. Click the cover to select a panel, drag to pan it.</p>
+    </div>
+    <div class="group">
+      <h2>Caption</h2>
+      <label>Title <input id="title" type="text" maxlength="24" value="GOLDEN COAST"></label>
+      <label>Subtitle <input id="subtitle" type="text" maxlength="40" value="One Last Ride"></label>
+      <label>Tagline <input id="tagline" type="text" maxlength="48" value="NO RULES AFTER DARK"></label>
+      <label>Press quote <input id="quote" type="text" maxlength="64" value="THE COAST HAS NEVER LOOKED THIS GOOD"></label>
+    </div>
+    <div class="group">
+      <h2>Selected panel</h2>
+      <label>Label <input id="panelLabel" type="text" maxlength="16"></label>
+      <div class="zoomrow">
+        <button id="zoomOut" type="button">− Zoom</button>
+        <span id="zoomLabel">100%</span>
+        <button id="zoomIn" type="button">+ Zoom</button>
+      </div>
+    </div>
+    <div class="group">
+      <h2>Export PNG</h2>
+      <div class="buttons export">
+        <button id="export-square" type="button">Square PNG</button>
+        <button id="export-portrait" type="button">Portrait PNG</button>
+        <button id="export-wide" type="button">Wide PNG</button>
+      </div>
+      <p class="hint">Exports are exact-size PNGs: 1080×1080, 1080×1350, 1920×1080. Works offline — no uploads, no account.</p>
+    </div>
+  </section>
 
-<main class="workbench">
-  <div class="stage">
+  <section class="preview" aria-label="Live preview">
     <canvas id="cover" width="1080" height="1080"></canvas>
-    <p class="hint">Drag the cover to pan the selected panel's photo. Click a photo below to put it in the selected panel.</p>
-  </div>
-  <aside class="controls">
-    <label>Title <input id="in-title" value="GOLDEN COAST" maxlength="24"></label>
-    <label>Subtitle <input id="in-subtitle" value="One Last Ride" maxlength="40"></label>
-    <label>Tagline <input id="in-tagline" value="NO RULES AFTER DARK" maxlength="48"></label>
-    <label>Press quote <input id="in-quote" value="THE COAST HAS NEVER LOOKED THIS GOOD" maxlength="64"></label>
-    <div class="row">
-      <label>Quote source <input id="in-source" value="VICE DAILY" maxlength="24"></label>
-      <label>Vol. <input id="in-vol" value="07" maxlength="4"></label>
-    </div>
-    <div class="panel-head">Panels <span class="mini">click a panel, then a photo</span></div>
-    <div id="panels" class="panels"></div>
-    <label>Zoom <input id="zoom" type="range" min="1" max="2.5" step="0.05" value="1"></label>
-    <div class="panel-head">Photos</div>
-    <div id="photos" class="photos"></div>
-    <label class="upload">+ Upload your photo
-      <input id="upload" type="file" accept="image/*" multiple hidden>
-    </label>
-    <div class="exports">
-      <button id="export" class="primary">Export PNG</button>
-      <button id="export-all">Export all 3 sizes</button>
-    </div>
-    <p class="fine">Photos stay on your machine — nothing is uploaded. Original design, no Rockstar artwork or fonts.</p>
-  </aside>
+    <p class="preview-note">Live preview — what you see is the exported cover. Fan-made cover studio; not affiliated with Rockstar Games.</p>
+  </section>
 </main>
 
 <script type="module" src="src/main.js"></script>
-<script src="src/shots.js"></script>
 </body>
 </html>
