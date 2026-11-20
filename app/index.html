@@ -4,63 +4,73 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:,">
-<title>Golden Hour — Vice Cover Studio</title>
+<title>Golden Hour — GTA 6 Cover Studio</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="topbar">
-  <div class="brand"><span class="brand-mark">GOLDEN HOUR</span><span class="brand-sub">Vice Cover Studio</span></div>
-  <div class="topnote">Your photos · Your caption · Three sizes · Offline</div>
+  <div class="brand">
+    <span class="logo">GOLDEN HOUR</span>
+    <span class="tag">GTA 6 cover studio · make your own poster</span>
+  </div>
+  <div class="sizes" role="group" aria-label="Export size">
+    <button data-size="square" class="active">1080 × 1080</button>
+    <button data-size="portrait">1080 × 1350</button>
+    <button data-size="wide">1920 × 1080</button>
+  </div>
 </header>
+
+<section class="pickers">
+  <div class="picker">
+    <span class="picker-label">Layout</span>
+    <button data-layout="cast" class="active">Cast Grid</button>
+    <button data-layout="split">Sunset Split</button>
+    <button data-layout="slant">Comic Slant</button>
+    <button data-layout="strip">Triple Strip</button>
+    <button data-layout="hero">Hero Single</button>
+    <button data-layout="location">Location Grid</button>
+  </div>
+  <div class="picker">
+    <span class="picker-label">Grade</span>
+    <button data-grade="sunset">Sunset</button>
+    <button data-grade="neon">Neon</button>
+    <button data-grade="golden" class="active">Golden Hour</button>
+    <button data-grade="dark">After Dark</button>
+    <button data-grade="vice">Vice Pink</button>
+  </div>
+</section>
+
 <main class="workbench">
-  <section class="controls" aria-label="Cover controls">
-    <div class="group">
-      <h2>1 · Photos</h2>
-      <p class="hint">Click a sample to use it, or drop your own photos in. Photos stay on your machine — nothing is uploaded.</p>
-      <div id="photoThumbs" class="thumbs"></div>
-      <div id="dropzone" class="dropzone" role="button" tabindex="0">Drop photos here, or click to choose</div>
+  <div class="stage">
+    <canvas id="cover" width="1080" height="1080"></canvas>
+    <p class="hint">Drag the cover to pan the selected panel's photo. Click a photo below to put it in the selected panel.</p>
+  </div>
+  <aside class="controls">
+    <label>Title <input id="in-title" value="GOLDEN COAST" maxlength="24"></label>
+    <label>Subtitle <input id="in-subtitle" value="One Last Ride" maxlength="40"></label>
+    <label>Tagline <input id="in-tagline" value="NO RULES AFTER DARK" maxlength="48"></label>
+    <label>Press quote <input id="in-quote" value="THE COAST HAS NEVER LOOKED THIS GOOD" maxlength="64"></label>
+    <div class="row">
+      <label>Quote source <input id="in-source" value="VICE DAILY" maxlength="24"></label>
+      <label>Vol. <input id="in-vol" value="07" maxlength="4"></label>
+    </div>
+    <div class="panel-head">Panels <span class="mini">click a panel, then a photo</span></div>
+    <div id="panels" class="panels"></div>
+    <label>Zoom <input id="zoom" type="range" min="1" max="2.5" step="0.05" value="1"></label>
+    <div class="panel-head">Photos</div>
+    <div id="photos" class="photos"></div>
+    <label class="upload">+ Upload your photo
       <input id="upload" type="file" accept="image/*" multiple hidden>
-    </div>
-    <div class="group">
-      <h2>2 · Layout</h2>
-      <div id="layoutBtns" class="picks"></div>
-    </div>
-    <div class="group">
-      <h2>3 · Grade</h2>
-      <div id="gradeBtns" class="picks"></div>
-    </div>
-    <div class="group">
-      <h2>4 · Caption</h2>
-      <label>Title<input id="inTitle" type="text" maxlength="24" autocomplete="off"></label>
-      <label>Subtitle<input id="inSubtitle" type="text" maxlength="32" autocomplete="off"></label>
-      <label>Tagline<input id="inTagline" type="text" maxlength="48" autocomplete="off"></label>
-      <label>Press quote<input id="inQuote" type="text" maxlength="48" autocomplete="off"></label>
-      <label>Quote source<input id="inQuoteSource" type="text" maxlength="24" autocomplete="off"></label>
-      <label>Volume<input id="inVol" type="text" maxlength="12" autocomplete="off"></label>
-      <label>Billing line<input id="inBilling" type="text" maxlength="96" autocomplete="off"></label>
-    </div>
-    <div class="group">
-      <h2>5 · Panels</h2>
-      <p class="hint">Pick a photo per panel, then crop it with zoom and pan. Labels are the callouts printed on each panel.</p>
-      <div id="panelControls"></div>
-    </div>
-  </section>
-  <section class="stage" aria-label="Live preview and export">
-    <div class="stagebar">
-      <div class="sizes" id="sizeBtns"></div>
-      <div id="previewSize" class="preview-size"></div>
-    </div>
-    <div class="canvaswrap"><canvas id="preview" width="960" height="540"></canvas></div>
+    </label>
     <div class="exports">
-      <button id="export-landscape" type="button" class="export">Export PNG 1920 × 1080</button>
-      <button id="export-square" type="button" class="export">Export PNG 1080 × 1080</button>
-      <button id="export-portrait" type="button" class="export">Export PNG 1080 × 1350</button>
-      <button id="exportAll" type="button" class="export primary">Export all three sizes</button>
+      <button id="export" class="primary">Export PNG</button>
+      <button id="export-all">Export all 3 sizes</button>
     </div>
-    <div id="status" class="status">Ready.</div>
-    <p class="fineprint">All lettering is drawn in code with open fonts (Anton, Yellowtail, Archivo — SIL Open Font License). No Rockstar logo, artwork or font. Sample photos are model-made and free to use.</p>
-  </section>
+    <p class="fine">Photos stay on your machine — nothing is uploaded. Original design, no Rockstar artwork or fonts.</p>
+  </aside>
 </main>
+
 <script type="module" src="src/main.js"></script>
+<script src="src/shots.js"></script>
 </body>
 </html>
