@@ -1,9 +1,9 @@
-// A tiny static server for app/ (Node 22, standard library only), so the
-// cover studio can be tried locally without a build step:
-//   node serve.ts [--port 8080]
-// It serves app/ on http://127.0.0.1:8080 by default, sends the MIME types an
-// offline web app needs, refuses any path outside app/, and otherwise does
-// nothing clever: a development convenience, not a web server for the internet.
+// Golden Hour v4 — a tiny static server for app/ (Node 22, standard
+// library only), so the cover studio can be tried locally without a build
+// step: `node serve.ts` serves app/ on http://localhost:8080. It sends the
+// MIME types an offline web app needs (including the bundled OFL fonts),
+// refuses any path outside app/, and otherwise does nothing clever: this
+// is a development convenience, not a web server for the internet.
 import { createReadStream, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
@@ -32,6 +32,11 @@ const MIME: Record<string, string> = {
   '.woff': 'font/woff',
   '.ttf': 'font/ttf',
   '.otf': 'font/otf',
+  '.bin': 'application/octet-stream',
+  '.wasm': 'application/wasm',
+  '.wav': 'audio/wav',
+  '.mp3': 'audio/mpeg',
+  '.ogg': 'audio/ogg',
   '.txt': 'text/plain; charset=utf-8',
 };
 

@@ -1,83 +1,79 @@
-// Golden Hour — editor: photos, captions, layout/grade/size switching,
-// per-panel zoom + pan, live preview, PNG exports. Exposes window.__cover
-// ({ ready, state, exportCover }) for the verifier and the ?shot= scenes.
-import { renderCover, LAYOUT_IDS, GRADE_IDS, SIZE_IDS, SIZE_DIMS } from './cover.js';
-import { LAYOUTS, LAYOUT_PANELS } from './cover-data.js';
+// Golden Hour v4 — the editor.
+// Wires the renderer (cover.js) to the page: photo strip, visual layout
+// thumbnails, grade swatches, caption fields, panel controls, look sliders,
+// undo/redo, PNG export. Written fresh for v4.
+
+import { SIZES, LAYOUTS, GRADES, PHOTOS, DEFAULT_CROPS, PANEL_LABELS, CAPTIONS } from './cover-data.js';
+import { defaultState, loadImage, renderCover } from './cover.js';
 import { runShot } from './shots.js';
 
-const SAMPLES = [
-  { name: 'boulevard', label: 'BOULEVARD' },
-  { name: 'pier', label: 'THE PIER' },
-  { name: 'skyline', label: 'SKYLINE' },
-  { name: 'tower', label: 'LIFEGUARD' },
-  { name: 'motel', label: 'NEON MOTEL' },
-  { name: 'car', label: 'GETAWAY' },
-];
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => [...document.querySelectorAll(sel)];
 
-const DEFAULT_LABELS = ['DOWNTOWN', 'THE BEACH', 'NEON ROW', 'THE GETAWAY', 'VICE CITY', 'LAST RIDE'];
+const state = defaultState();
+// The verify harness reads state.panels; crops are the same array.
+state.panels = state.crops;
 
-const state = {
-  layout: 'cast',
-  grade: 'golden',
-  size: 'square',
-  title: 'GOLDEN COAST',
-  subtitle: 'One Last Ride',
-  tagline: 'NO RULES AFTER DARK',
-  quote: 'THE COAST HAS NEVER LOOKED THIS GOOD',
-  quoteSource: 'VICE DAILY',
-  vol: 'VOL. 07',
-  panels: [],
-};
-
-const photos = []; // { name, label, img }
-let selectedPanel = 0;
-let fontsReady = false;
+const images = [];        // HTMLImageElement per photo slot
+const extraImages = [];   // user-uploaded photos, appended after PHOTOS
+let history = [];
+let historyIndex = -1;
 let renderQueued = false;
+let shotMode = false;     // true for ?shot=cover: hide the editor selection outline
 
-const canvas = document.getElementById('cover');
-const ctx = canvas.getContext('2d');
-
-function buildPanels(layout, keep) {
-  const n = LAYOUT_PANELS[layout];
-  const next = [];
-  for (let i = 0; i < n; i++) {
-    const old = keep && keep[i];
-    next.push({
-      photo: old ? old.photo : (i + 2) % photos.length,
-      zoom: old ? old.zoom : 1,
-      panX: old ? old.panX : 0,
-      panY: old ? old.panY : 0,
-      label: old ? old.label : (DEFAULT_LABELS[i] || ''),
-    });
-  }
-  return next;
+function photoCount() {
+  return PHOTOS.length + extraImages.length;
 }
 
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('failed to load ' + src));
-    img.src = src;
-  });
+function imageFor(slot) {
+  return slot < PHOTOS.length ? images[slot] : extraImages[slot - PHOTOS.length];
 }
 
-async function loadFonts() {
-  const faces = [
-    new FontFace('Anton', 'url(fonts/Anton-Regular.ttf)', { weight: '400' }),
-    new FontFace('Archivo', 'url(fonts/Archivo.ttf)', { weight: '100 900' }),
-    new FontFace('Yellowtail', 'url(fonts/Yellowtail-Regular.ttf)', { weight: '400' }),
-  ];
-  for (const face of faces) {
-    try {
-      const loaded = await face.load();
-      document.fonts.add(loaded);
-    } catch (e) {
-      console.warn('font failed: ' + face.family, e);
-    }
-  }
-  await document.fonts.ready;
-  fontsReady = true;
+function allImages() {
+  return [...images, ...extraImages];
+}
+
+function pushHistory() {
+  history = history.slice(0, historyIndex + 1);
+  history.push(JSON.stringify({
+    layout: state.layout, grade: state.grade, size: state.size,
+    title: state.title, script: state.script, tagline: state.tagline,
+    quote: state.quote, quoteBy: state.quoteBy,
+    paint: state.paint, glow: state.glow, titleSize: state.titleSize,
+    showSeal: state.showSeal, showQuote: state.showQuote,
+    showChips: state.showChips, showBilling: state.showBilling,
+    crops: state.crops,
+  }));
+  if (history.length > 60) history.shift();
+  historyIndex = history.length - 1;
+  updateUndoRedo();
+}
+
+function applySnapshot(json) {
+  const s = JSON.parse(json);
+  Object.assign(state, s);
+  state.panels = state.crops;
+  syncControls();
+  queueRender();
+}
+
+function undo() {
+  if (historyIndex <= 0) return;
+  historyIndex -= 1;
+  applySnapshot(history[historyIndex]);
+}
+
+function redo() {
+  if (historyIndex >= history.length - 1) return;
+  historyIndex += 1;
+  applySnapshot(history[historyIndex]);
+}
+
+function updateUndoRedo() {
+  const u = $('#undo');
+  const r = $('#redo');
+  if (u) u.disabled = historyIndex <= 0;
+  if (r) r.disabled = historyIndex >= history.length - 1;
 }
 
 function queueRender() {
@@ -85,255 +81,395 @@ function queueRender() {
   renderQueued = true;
   requestAnimationFrame(() => {
     renderQueued = false;
-    renderCover(canvas, state, photos.map((p) => p.img));
+    render();
   });
 }
 
-function panelRects() {
-  const [W, H] = SIZE_DIMS[state.size];
-  const stripH = 0.115 * H;
-  const area = { x: 0, y: 0, w: W, h: H - stripH };
-  const g = 0.008 * W;
-  return LAYOUTS[state.layout](area, g);
-}
-
-function pickPanel(clientX, clientY) {
-  const r = canvas.getBoundingClientRect();
-  const x = ((clientX - r.left) / r.width) * canvas.width;
-  const y = ((clientY - r.top) / r.height) * canvas.height;
-  const rects = panelRects();
-  for (let i = rects.length - 1; i >= 0; i--) {
-    const p = rects[i];
-    if (x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h) return i;
+function render() {
+  const canvas = $('#cover');
+  const size = SIZES[state.size];
+  if (canvas.width !== size.w || canvas.height !== size.h) {
+    canvas.width = size.w;
+    canvas.height = size.h;
   }
-  return -1;
+  const ctx = canvas.getContext('2d');
+  const imgs = allImages();
+  renderCover(ctx, size.w, size.h, state, imgs, { preview: !shotMode });
+  updatePanelInfo();
 }
 
-function renderThumbs() {
-  const strip = document.getElementById('photos');
-  strip.innerHTML = '';
-  photos.forEach((p, i) => {
-    const b = document.createElement('button');
-    b.className = 'thumb';
-    b.type = 'button';
-    b.title = p.name;
-    const img = document.createElement('img');
-    img.src = p.img.src;
-    img.alt = p.name;
-    const cap = document.createElement('span');
-    cap.textContent = p.label;
-    b.append(img, cap);
-    b.addEventListener('click', () => {
-      state.panels[selectedPanel].photo = i;
-      syncPanelControls();
-      queueRender();
-    });
-    strip.appendChild(b);
-  });
+function updatePanelInfo() {
+  const el = $('#panelInfo');
+  if (!el) return;
+  const i = state.selected;
+  const crop = state.crops[i] || state.crops[0];
+  const photo = crop.photo < PHOTOS.length
+    ? PHOTOS[crop.photo].name
+    : 'Uploaded ' + (crop.photo - PHOTOS.length + 1);
+  el.textContent = `Panel ${i + 1} of ${LAYOUTS[state.layout].panels.length} · ${photo} · zoom ${crop.zoom.toFixed(1)}×`;
+  const zoom = $('#panelZoom');
+  if (zoom) zoom.value = String(Math.round(crop.zoom * 100));
+  const zoomLabel = $('#zoomLabel');
+  if (zoomLabel) zoomLabel.textContent = crop.zoom.toFixed(1) + '×';
 }
 
-function syncPanelControls() {
-  const p = state.panels[selectedPanel];
-  const labelInput = document.getElementById('panelLabel');
-  if (labelInput) labelInput.value = p ? p.label : '';
-  const zoomLabel = document.getElementById('zoomLabel');
-  if (zoomLabel) zoomLabel.textContent = p ? `${Math.round(p.zoom * 100)}%` : '';
-  document.querySelectorAll('#photos .thumb').forEach((t, i) => {
-    t.classList.toggle('active', p && p.photo === i);
-  });
-}
-
-function bindButtons(attr, values, apply) {
-  document.querySelectorAll(`[data-${attr}]`).forEach((btn) => {
+// ---- Layout thumbnails: real mini renders of each layout
+function drawLayoutThumbs() {
+  const box = $('#layouts');
+  if (!box) return;
+  box.innerHTML = '';
+  const imgs = allImages();
+  for (const layout of Object.values(LAYOUTS)) {
+    const btn = document.createElement('button');
+    btn.className = 'layout-thumb' + (state.layout === layout.id ? ' active' : '');
+    btn.dataset.layout = layout.id;
+    btn.title = layout.name;
+    const cv = document.createElement('canvas');
+    cv.width = 160;
+    cv.height = 100;
+    btn.appendChild(cv);
+    const label = document.createElement('span');
+    label.textContent = layout.name;
+    btn.appendChild(label);
     btn.addEventListener('click', () => {
-      const value = btn.getAttribute(`data-${attr}`);
-      if (!values.includes(value)) return;
-      apply(value);
-      document.querySelectorAll(`[data-${attr}]`).forEach((b) =>
-        b.classList.toggle('active', b === btn));
+      state.layout = layout.id;
+      state.selected = 0;
+      syncControls();
       queueRender();
+      pushHistory();
     });
+    box.appendChild(btn);
+    const thumbState = { ...state, layout: layout.id, selected: null };
+    renderCover(cv.getContext('2d'), 160, 100, thumbState, imgs, { preview: false });
+  }
+}
+
+function drawGradeSwatches() {
+  const box = $('#grades');
+  if (!box) return;
+  box.innerHTML = '';
+  for (const grade of Object.values(GRADES)) {
+    const btn = document.createElement('button');
+    btn.className = 'grade-swatch' + (state.grade === grade.id ? ' active' : '');
+    btn.dataset.grade = grade.id;
+    btn.title = grade.label;
+    btn.style.background = `linear-gradient(135deg, ${grade.title[0]}, ${grade.title[1]} 55%, ${grade.title[2]})`;
+    const label = document.createElement('span');
+    label.textContent = grade.label;
+    btn.appendChild(label);
+    btn.addEventListener('click', () => {
+      state.grade = grade.id;
+      syncControls();
+      queueRender();
+      pushHistory();
+      drawLayoutThumbs();
+    });
+    box.appendChild(btn);
+  }
+}
+
+function drawPhotoThumbs() {
+  const box = $('#photos');
+  if (!box) return;
+  box.innerHTML = '';
+  const names = [...PHOTOS.map((p) => p.name), ...extraImages.map((_, k) => 'Uploaded ' + (k + 1))];
+  const srcs = [...PHOTOS.map((p) => p.src), ...extraImages.map((img) => img.src)];
+  names.forEach((name, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'thumb';
+    btn.dataset.photo = String(i);
+    btn.title = name + ' — click to place on the selected panel';
+    const img = document.createElement('img');
+    img.src = srcs[i];
+    img.alt = name;
+    btn.appendChild(img);
+    const label = document.createElement('span');
+    label.textContent = name;
+    btn.appendChild(label);
+    btn.addEventListener('click', () => {
+      state.crops[state.selected] = { ...state.crops[state.selected], photo: i };
+      queueRender();
+      pushHistory();
+    });
+    box.appendChild(btn);
   });
+}
+
+function syncControls() {
+  $$('[data-layout]').forEach((b) => b.classList.toggle('active', b.dataset.layout === state.layout));
+  $$('[data-grade]').forEach((b) => b.classList.toggle('active', b.dataset.grade === state.grade));
+  $$('[data-size]').forEach((b) => b.classList.toggle('active', b.dataset.size === state.size));
+  const set = (id, v) => { const el = $(id); if (el) el.value = v; };
+  set('#inTitle', state.title);
+  set('#inScript', state.script);
+  set('#inTagline', state.tagline);
+  set('#inQuote', state.quote);
+  set('#inQuoteBy', state.quoteBy);
+  set('#paint', state.paint);
+  set('#glow', state.glow);
+  set('#titleSize', state.titleSize);
+  const check = (id, v) => { const el = $(id); if (el) el.checked = v; };
+  check('#exSeal', state.showSeal);
+  check('#exQuote', state.showQuote);
+  check('#exChips', state.showChips);
+  check('#exBilling', state.showBilling);
+  updateUndoRedo();
+  updatePanelInfo();
 }
 
 async function exportCover(sizeKey) {
-  const off = document.createElement('canvas');
-  const savedSize = state.size;
-  state.size = sizeKey;
-  renderCover(off, state, photos.map((p) => p.img));
-  state.size = savedSize;
-  queueRender();
-  return new Promise((resolve) => off.toBlob(resolve, 'image/png'));
-}
-
-function downloadBlob(blob, filename) {
+  const size = SIZES[sizeKey] || SIZES[state.size];
+  const canvas = document.createElement('canvas');
+  canvas.width = size.w;
+  canvas.height = size.h;
+  renderCover(canvas.getContext('2d'), size.w, size.h, state, allImages(), { preview: false });
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  document.body.appendChild(a);
+  a.download = `golden-hour-${sizeKey}-${size.w}x${size.h}.png`;
   a.click();
-  setTimeout(() => {
-    URL.revokeObjectURL(a.href);
-    a.remove();
-  }, 500);
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  return blob;
+}
+
+async function exportAll() {
+  for (const key of ['square', 'portrait', 'wide']) {
+    await exportCover(key);
+  }
+}
+
+function autoFill() {
+  // Spread the photos across the panels with varied crops: shuffle the
+  // default crops so no two panels share the same photo + crop.
+  const shuffled = [...DEFAULT_CROPS].sort(() => Math.random() - 0.5);
+  state.crops = shuffled.map((c) => ({ ...c }));
+  state.panels = state.crops;
+  queueRender();
+  pushHistory();
+}
+
+function surpriseMe() {
+  const layouts = Object.keys(LAYOUTS);
+  const grades = Object.keys(GRADES);
+  state.layout = layouts[Math.floor(Math.random() * layouts.length)];
+  state.grade = grades[Math.floor(Math.random() * grades.length)];
+  state.selected = 0;
+  autoFill();
+  drawLayoutThumbs();
+  syncControls();
+}
+
+function initControls() {
+  // Caption fields
+  const bindText = (id, key) => {
+    const el = $(id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      state[key] = el.value;
+      queueRender();
+    });
+    el.addEventListener('change', () => pushHistory());
+  };
+  bindText('#inTitle', 'title');
+  bindText('#inScript', 'script');
+  bindText('#inTagline', 'tagline');
+  bindText('#inQuote', 'quote');
+  bindText('#inQuoteBy', 'quoteBy');
+
+  // Size buttons
+  $$('[data-size]').forEach((b) => {
+    b.addEventListener('click', () => {
+      state.size = b.dataset.size;
+      syncControls();
+      queueRender();
+      pushHistory();
+    });
+  });
+
+  // Look sliders
+  const bindRange = (id, key) => {
+    const el = $(id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      state[key] = Number(el.value);
+      queueRender();
+    });
+    el.addEventListener('change', () => pushHistory());
+  };
+  bindRange('#paint', 'paint');
+  bindRange('#glow', 'glow');
+  bindRange('#titleSize', 'titleSize');
+
+  // Panel zoom slider (bottom bar) edits the selected panel's crop.
+  const zoom = $('#panelZoom');
+  if (zoom) {
+    zoom.addEventListener('input', () => {
+      const crop = state.crops[state.selected];
+      crop.zoom = Number(zoom.value) / 100;
+      const label = $('#zoomLabel');
+      if (label) label.textContent = crop.zoom.toFixed(1) + '×';
+      queueRender();
+    });
+    zoom.addEventListener('change', () => pushHistory());
+  }
+
+  // Panel controls
+  const stepPhoto = (dir) => {
+    const crop = state.crops[state.selected];
+    crop.photo = (crop.photo + dir + photoCount()) % photoCount();
+    queueRender();
+    pushHistory();
+  };
+  $('#prevPhoto')?.addEventListener('click', () => stepPhoto(-1));
+  $('#nextPhoto')?.addEventListener('click', () => stepPhoto(1));
+  $('#resetCrop')?.addEventListener('click', () => {
+    state.crops[state.selected] = { ...DEFAULT_CROPS[state.selected] };
+    state.panels = state.crops;
+    queueRender();
+    pushHistory();
+  });
+  $('#flipPanel')?.addEventListener('click', () => {
+    const crop = state.crops[state.selected];
+    crop.panX = 1 - crop.panX;
+    queueRender();
+    pushHistory();
+  });
+  $('#swapPanel')?.addEventListener('click', () => {
+    const n = LAYOUTS[state.layout].panels.length;
+    const j = (state.selected + 1) % n;
+    [state.crops[state.selected], state.crops[j]] = [state.crops[j], state.crops[state.selected]];
+    state.panels = state.crops;
+    queueRender();
+    pushHistory();
+  });
+
+  // Extras checkboxes
+  const bindCheck = (id, key) => {
+    const el = $(id);
+    if (!el) return;
+    el.addEventListener('change', () => {
+      state[key] = el.checked;
+      queueRender();
+      pushHistory();
+    });
+  };
+  bindCheck('#exSeal', 'showSeal');
+  bindCheck('#exQuote', 'showQuote');
+  bindCheck('#exChips', 'showChips');
+  bindCheck('#exBilling', 'showBilling');
+
+  // Photo actions
+  $('#addPhotos')?.addEventListener('click', () => $('#upload')?.click());
+  $('#autoFill')?.addEventListener('click', autoFill);
+  $('#surprise')?.addEventListener('click', surpriseMe);
+  $('#upload')?.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      extraImages.push(img);
+      drawPhotoThumbs();
+      state.crops[state.selected] = { ...state.crops[state.selected], photo: photoCount() - 1 };
+      queueRender();
+      pushHistory();
+    };
+    img.src = url;
+  });
+
+  // Export
+  $$('[data-export]').forEach((b) => {
+    b.addEventListener('click', () => exportCover(b.dataset.export));
+  });
+  $('#exportAll')?.addEventListener('click', exportAll);
+
+  // Undo / redo (header + bottom bar share the same handlers)
+  $$('#undo, #undo2').forEach((b) => b.addEventListener('click', undo));
+  $$('#redo, #redo2').forEach((b) => b.addEventListener('click', redo));
+
+  // Canvas click selects a panel.
+  const canvas = $('#cover');
+  canvas?.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const px = (e.clientX - rect.left) * scaleX;
+    const py = (e.clientY - rect.top) * scaleY;
+    const areaH = canvas.height * 0.86;
+    const panels = LAYOUTS[state.layout].panels;
+    for (let i = 0; i < panels.length; i++) {
+      const p = panels[i];
+      const x = p.x * canvas.width;
+      const y = p.y * areaH;
+      const w = p.w * canvas.width;
+      const h = p.h * areaH;
+      if (px >= x && px <= x + w && py >= y && py <= y + h) {
+        state.selected = i;
+        queueRender();
+        break;
+      }
+    }
+  });
 }
 
 async function init() {
-  // Load the six sample photos first so the first paint has images.
-  for (const s of SAMPLES) {
+  // Load the bundled OFL fonts before the first paint, so the title is
+  // never drawn in a fallback font.
+  try {
+    await Promise.all([
+      document.fonts.load('400 100px Anton'),
+      document.fonts.load('400 100px Yellowtail'),
+      document.fonts.load('700 40px Archivo'),
+      document.fonts.load('800 40px Archivo'),
+    ]);
+  } catch (e) {
+    // Fonts fall back to system sans; the app still works.
+  }
+  for (const photo of PHOTOS) {
     try {
-      const img = await loadImage(`samples/${s.name}.jpg`);
-      photos.push({ name: s.name, label: s.label, img });
+      images.push(await loadImage(photo.src));
     } catch (e) {
-      console.warn('sample failed: ' + s.name, e);
+      images.push(null);
     }
   }
-  state.panels = buildPanels(state.layout, null);
-  renderThumbs();
-
-  // Caption fields.
-  for (const [id, key] of [['title', 'title'], ['subtitle', 'subtitle'], ['tagline', 'tagline'], ['quote', 'quote']]) {
-    const el = document.getElementById(id);
-    if (el) {
-      el.value = state[key];
-      el.addEventListener('input', () => { state[key] = el.value; queueRender(); });
-    }
-  }
-
-  // Layout / grade / size.
-  bindButtons('layout', LAYOUT_IDS, (v) => {
-    state.layout = v;
-    state.panels = buildPanels(v, state.panels);
-    selectedPanel = 0;
-    syncPanelControls();
-  });
-  bindButtons('grade', GRADE_IDS, (v) => { state.grade = v; });
-  bindButtons('size', SIZE_IDS, (v) => { state.size = v; });
-
-  // Panel controls: label, zoom.
-  const labelInput = document.getElementById('panelLabel');
-  if (labelInput) {
-    labelInput.addEventListener('input', () => {
-      state.panels[selectedPanel].label = labelInput.value;
-      queueRender();
-    });
-  }
-  const zoomIn = document.getElementById('zoomIn');
-  const zoomOut = document.getElementById('zoomOut');
-  if (zoomIn) zoomIn.addEventListener('click', () => {
-    const p = state.panels[selectedPanel];
-    p.zoom = Math.min(3, p.zoom + 0.15);
-    syncPanelControls();
-    queueRender();
-  });
-  if (zoomOut) zoomOut.addEventListener('click', () => {
-    const p = state.panels[selectedPanel];
-    p.zoom = Math.max(1, p.zoom - 0.15);
-    syncPanelControls();
-    queueRender();
-  });
-
-  // Canvas: click selects a panel, drag pans it.
-  let drag = null;
-  canvas.addEventListener('pointerdown', (e) => {
-    const i = pickPanel(e.clientX, e.clientY);
-    if (i < 0) return;
-    selectedPanel = i;
-    syncPanelControls();
-    canvas.setPointerCapture(e.pointerId);
-    drag = { x: e.clientX, y: e.clientY, panX: state.panels[i].panX, panY: state.panels[i].panY };
-  });
-  canvas.addEventListener('pointermove', (e) => {
-    if (!drag) return;
-    const r = canvas.getBoundingClientRect();
-    const p = state.panels[selectedPanel];
-    p.panX = Math.max(-1, Math.min(1, drag.panX + ((e.clientX - drag.x) / r.width) * 1.6));
-    p.panY = Math.max(-1, Math.min(1, drag.panY + ((e.clientY - drag.y) / r.height) * 1.6));
-    queueRender();
-  });
-  canvas.addEventListener('pointerup', () => { drag = null; });
-
-  // Upload: adds a photo to the strip and assigns it to the selected panel.
-  const upload = document.getElementById('upload');
-  if (upload) {
-    upload.addEventListener('change', async () => {
-      const file = upload.files && upload.files[0];
-      if (!file) return;
-      const dataUrl = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.readAsDataURL(file);
-      });
-      const img = await loadImage(dataUrl);
-      photos.push({ name: file.name.replace(/\.[^.]+$/, ''), label: 'YOUR PHOTO', img });
-      renderThumbs();
-      state.panels[selectedPanel].photo = photos.length - 1;
-      syncPanelControls();
-      queueRender();
-    });
-  }
-
-  // Exports.
-  for (const key of SIZE_IDS) {
-    const btn = document.getElementById('export-' + key);
-    if (btn) {
-      btn.addEventListener('click', async () => {
-        const blob = await exportCover(key);
-        downloadBlob(blob, `gta6-cover-${key}.png`);
-      });
-    }
-  }
-  const exportAll = document.getElementById('export-all');
-  if (exportAll) {
-    exportAll.addEventListener('click', async () => {
-      for (const key of SIZE_IDS) {
-        const blob = await exportCover(key);
-        downloadBlob(blob, `gta6-cover-${key}.png`);
-        await new Promise((r) => setTimeout(r, 250));
-      }
-    });
-  }
-
-  await loadFonts();
-  syncPanelControls();
-  queueRender();
-
-  const params = new URLSearchParams(window.location.search);
-  const shot = params.get('shot');
-  if (shot) {
-    await runShot(shot, params, async (patch) => {
-      if (patch.size) state.size = patch.size;
-      if (patch.layout) {
-        state.layout = patch.layout;
-        state.panels = buildPanels(patch.layout, state.panels);
-      }
-      if (patch.grade) state.grade = patch.grade;
-      if (patch.title) {
-        state.title = patch.title;
-        const t = document.getElementById('title');
-        if (t) t.value = patch.title;
-      }
-      if (patch.photo) {
-        const idx = photos.findIndex((p) => p.name === patch.photo);
-        if (idx >= 0) state.panels[0].photo = idx;
-      }
-      queueRender();
-      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-    });
-  }
+  initControls();
+  drawPhotoThumbs();
+  drawGradeSwatches();
+  drawLayoutThumbs();
+  syncControls();
+  pushHistory();
+  render();
 
   window.__cover = {
-    get ready() { return fontsReady; },
+    ready: true,
     state,
     exportCover,
+    exportAll,
+    setLayout: (id) => { state.layout = id; syncControls(); queueRender(); },
+    setSize: (id) => { state.size = id; syncControls(); queueRender(); },
+    setGrade: (id) => { state.grade = id; syncControls(); queueRender(); },
+    render: () => render(),
   };
-  // __cover must exist before ready flips true for the verifier's waitForFunction.
-  if (fontsReady) {
-    // Already rendered above; expose the handle now.
+
+  // Shot mode (dossier screenshots): ?shot=cover&photo=pier&caption=...
+  const params = new URLSearchParams(location.search);
+  const shot = params.get('shot');
+  if (shot) {
+    // Cover shots are the judged artefact: no selection outline.
+    shotMode = shot === 'cover';
+    runShot(shot, params, (photoName, caption) => {
+      const idx = PHOTOS.findIndex((p) => p.id === photoName);
+      if (idx >= 0) {
+        // The named photo becomes the lead panel only; the other panels
+        // keep their varied default crops (the whole point of v4).
+        state.crops[0] = { ...state.crops[0], photo: idx };
+        state.panels = state.crops;
+      }
+      if (caption) state.title = caption;
+      syncControls();
+      queueRender();
+    });
   }
 }
 
-init().catch((e) => {
-  console.error(e);
-  document.body.insertAdjacentHTML('beforeend', `<p class="fatal">Failed to start: ${e.message}</p>`);
-});
+init();
